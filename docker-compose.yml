@@ -1,0 +1,66 @@
+services:
+  appointment-service:
+    build: ./appointment-service
+    ports:
+      - "5001:5001"
+    environment:
+      DOCTOR_SERVICE_URL: http://doctor-service:5002
+      RABBITMQ_URL: amqp://rabbitmq
+    depends_on:
+      doctor-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - lab3-network
+
+  doctor-service:
+    build: ./doctor-service
+    ports:
+      - "5002:5002"
+    networks:
+      - lab3-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5002/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  notification-service:
+    build: ./notification-service
+    environment:
+      RABBITMQ_URL: amqp://rabbitmq
+    depends_on: 
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - lab3-network
+
+  records-service:
+    build: ./records-service
+    environment:
+      RABBITMQ_URL: amqp://rabbitmq
+    depends_on: 
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - lab3-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: "no"
+    networks:
+      - lab3-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  lab3-network:
+    driver: bridge
